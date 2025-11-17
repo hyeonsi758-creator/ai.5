@@ -1,0 +1,70 @@
+Streamlit Subway App
+· python
+# streamlit_subway_app.py
+# 컬러 생성: 1등은 빨강, 나머지는 파란색에서 흐려지는 그라데이션
+colors = []
+for r in top10['rank']:
+    if r == 1:
+        colors.append('rgba(255,0,0,1)')  # 완전한 빨강
+    else:
+        # 파란 계열(Plotly 기본 파랑: 31,119,180)에서 투명도를 순차적으로 낮춤
+        # 순위가 높을수록 불투명도를 높여 진한 파랑, 낮을수록 옅은 파랑
+        # 우리는 rank 2..10 -> opacity 0.95 down to 0.25
+        max_rank = top10['rank'].max()
+        # linear interpolation
+        opacity = 0.95 - ( (r - 2) / max(1, (max_rank - 2)) ) * (0.70)  # 범위 0.95 ~ 0.25
+        opacity = max(0.15, min(1.0, opacity))
+        colors.append(f'rgba(31,119,180,{opacity:.2f})')
+
+
+# Plotly 막대 그래프
+fig = go.Figure()
+fig.add_trace(go.Bar(
+    x=top10['역명'] + ' (' + top10['노선명'] + ')',
+    y=top10['합계'],
+    text=top10['합계'],
+    textposition='auto',
+    marker_color=colors,
+    hovertemplate=(
+        '<b>%{x}</b><br>' +
+        '순위: %{customdata[0]}<br>' +
+        '승차: %{customdata[1]:,d}<br>' +
+        '하차: %{customdata[2]:,d}<br>' +
+        '합계: %{y:,d}<extra></extra>'
+    ),
+    customdata=top10[['rank','승차총승객수','하차총승객수']].values
+))
+
+
+fig.update_layout(
+    title=f"Top 10 역 — {sel_date} / {sel_line}",
+    xaxis_title="역 (노선)",
+    yaxis_title="승차+하차 합계",
+    template='plotly_white',
+    uniformtext_minsize=8,
+    uniformtext_mode='hide',
+    margin=dict(l=40, r=20, t=80, b=120)
+)
+
+
+# 그래프 출력
+st.plotly_chart(fig, use_container_width=True)
+
+
+# 데이터 표 및 CSV 다운로드
+with st.expander("🔎 TOP10 데이터 보기/다운로드"):
+    st.dataframe(top10[['rank','노선명','역명','승차총승객수','하차총승객수','합계']])
+
+
+    csv = top10.to_csv(index=False, encoding='utf-8-sig')
+    st.download_button("CSV로 다운로드", data=csv, file_name=f"top10_{sel_date}_{sel_line}.csv", mime='text/csv')
+
+
+st.markdown("---")
+st.caption("앱: Plotly + Streamlit. 색상: 1등 빨강, 나머지 파랑 계열 그라데이션 처리.")
+
+
+# requirements.txt (참고):
+# streamlit
+# pandas
+# plotly
